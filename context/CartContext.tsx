@@ -14,12 +14,14 @@ interface CartContextType {
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   cartCount: number;
+  openCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
 
   const addToCart = (product: any) => {
     setCart((prev) => {
@@ -31,6 +33,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, { _id: product._id, title: product.title, price: product.price, quantity: 1 }];
     });
+    setCartOpen(true);
   };
 
   const removeFromCart = (productId: string) => {
@@ -39,10 +42,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => setCart([]);
 
+  const openCart = () => setCartOpen(true);
+
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, cartCount }}>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, cartCount, openCart }}>
       {children}
     </CartContext.Provider>
   );

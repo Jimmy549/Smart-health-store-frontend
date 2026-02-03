@@ -1,16 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AppBar, Toolbar, Typography, Button, Box, Container, IconButton, Badge } from '@mui/material';
 import { LocalHospital, Logout, ShoppingCart, Analytics } from '@mui/icons-material';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useRouter } from 'next/navigation';
+import CartDrawer from './CartDrawer';
 
 export default function Header() {
   const { isAuthenticated, logout, user } = useAuth();
   const { cartCount } = useCart();
   const router = useRouter();
+  const [cartOpen, setCartOpen] = useState(false);
 
   return (
     <AppBar position="sticky">
@@ -35,7 +37,7 @@ export default function Header() {
             <Analytics />
           </IconButton>
 
-          <IconButton color="inherit" sx={{ mr: { xs: 1, sm: 2 } }}>
+          <IconButton color="inherit" sx={{ mr: { xs: 1, sm: 2 } }} onClick={() => setCartOpen(true)}>
             <Badge badgeContent={cartCount} color="error">
               <ShoppingCart />
             </Badge>
@@ -86,6 +88,7 @@ export default function Header() {
           )}
         </Toolbar>
       </Container>
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
     </AppBar>
   );
 }

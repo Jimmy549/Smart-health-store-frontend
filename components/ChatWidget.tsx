@@ -40,6 +40,7 @@ export default function ChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  const chatBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Check if Web Speech API is supported
@@ -93,6 +94,23 @@ export default function ChatWidget() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Close chat when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (open && chatBoxRef.current && !chatBoxRef.current.contains(event.target as Node)) {
+        const fabButton = document.querySelector('[aria-label="chat"]');
+        if (fabButton && !fabButton.contains(event.target as Node)) {
+          setOpen(false);
+        }
+      }
+    };
+
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
 
   // Auto-send when input changes in voice mode
   useEffect(() => {
@@ -212,6 +230,7 @@ export default function ChatWidget() {
       {/* Chat Window */}
       <Slide direction="up" in={open} mountOnEnter unmountOnExit>
         <Paper
+          ref={chatBoxRef}
           elevation={8}
           sx={{
             position: 'fixed',
