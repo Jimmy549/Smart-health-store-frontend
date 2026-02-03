@@ -13,6 +13,8 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Chat, Close, Send, Mic, MicOff, VolumeUp, VolumeOff, RecordVoiceOver } from '@mui/icons-material';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import api from '@/utils/api';
 
 interface Message {
@@ -22,6 +24,8 @@ interface Message {
 }
 
 export default function ChatWidget() {
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -429,7 +433,13 @@ export default function ChatWidget() {
           right: 24,
           zIndex: 1300,
         }}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (!isAuthenticated) {
+            router.push('/login');
+          } else {
+            setOpen(!open);
+          }
+        }}
       >
         {open ? <Close /> : <Chat />}
       </Fab>

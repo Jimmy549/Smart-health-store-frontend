@@ -17,6 +17,8 @@ import {
 } from '@mui/material';
 import { ShoppingCart, CheckCircle, Close } from '@mui/icons-material';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import { useSnackbar } from 'notistack';
 
 interface Product {
@@ -31,12 +33,18 @@ interface Product {
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const [isAdding, setIsAdding] = useState(false);
   const [open, setOpen] = useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
     setIsAdding(true);
     addToCart(product);
     enqueueSnackbar(`${product.title} added to cart!`, { variant: 'success' });
