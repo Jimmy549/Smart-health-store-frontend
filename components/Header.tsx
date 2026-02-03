@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box, Container, IconButton, Badge } from '@mui/material';
-import { LocalHospital, Logout, ShoppingCart } from '@mui/icons-material';
+import { LocalHospital, Logout, ShoppingCart, Analytics } from '@mui/icons-material';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useRouter } from 'next/navigation';
@@ -30,6 +30,10 @@ export default function Header() {
           >
             Smart Health Store
           </Typography>
+
+          <IconButton color="inherit" sx={{ mr: { xs: 1, sm: 2 } }} onClick={() => router.push('/analytics')}>
+            <Analytics />
+          </IconButton>
 
           <IconButton color="inherit" sx={{ mr: { xs: 1, sm: 2 } }}>
             <Badge badgeContent={cartCount} color="error">

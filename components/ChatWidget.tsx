@@ -10,8 +10,9 @@ import {
   Typography,
   CircularProgress,
   Slide,
+  Tooltip,
 } from '@mui/material';
-import { Chat, Close, Send } from '@mui/icons-material';
+import { Chat, Close, Send, Mic, MicOff, VolumeUp, VolumeOff, RecordVoiceOver } from '@mui/icons-material';
 import api from '@/utils/api';
 
 interface Message {
@@ -31,7 +32,59 @@ export default function ChatWidget() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [pendingVoiceSend, setPendingVoiceSend] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const synthRef = useRef<SpeechSynthesis | null>(null);
+
+  useEffect(() => {
+    // Check if Web Speech API is supported
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        setSpeechSupported(false);
+      } else {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(transcript);
+          setIsListening(false);
+          setPendingVoiceSend(true);
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+          // Auto-restart in voice mode
+          if (voiceMode && !loading) {
+            setTimeout(() => {
+              try {
+                recognitionRef.current?.start();
+                setIsListening(true);
+              } catch (e) {
+                console.error('Error restarting recognition:', e);
+              }
+            }, 1000);
+          }
+        };
+      }
+      
+      // Initialize speech synthesis
+      synthRef.current = window.speechSynthesis;
+    }
+  }, [voiceMode, loading]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -41,7 +94,73 @@ export default function ChatWidget() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async () => {
+  // Auto-send when input changes in voice mode
+  useEffect(() => {
+    if (voiceMode && input && pendingVoiceSend && !loading) {
+      setPendingVoiceSend(false);
+      setTimeout(() => handleSend('voice'), 500);
+    }
+  }, [input, voiceMode, pendingVoiceSend, loading]);
+
+  const handleVoiceInput = () => {
+    if (!speechSupported) {
+      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current?.start();
+        setIsListening(true);
+      } catch (error) {
+        console.error('Error starting speech recognition:', error);
+      }
+    }
+  };
+
+  const toggleVoiceMode = () => {
+    const newVoiceMode = !voiceMode;
+    setVoiceMode(newVoiceMode);
+    
+    if (newVoiceMode) {
+      // Start listening when voice mode is enabled
+      handleVoiceInput();
+    } else {
+      // Stop listening when voice mode is disabled
+      if (isListening) {
+        recognitionRef.current?.stop();
+        setIsListening(false);
+      }
+    }
+  };
+
+  const speakResponse = (text: string) => {
+    if (!synthRef.current) return;
+    
+    // Cancel any ongoing speech
+    synthRef.current.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    
+    synthRef.current.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    synthRef.current?.cancel();
+    setIsSpeaking(false);
+  };
+
+  const handleSend = async (inputType: 'text' | 'voice' = 'text') => {
     if (!input.trim() || loading) return;
 
     const userMessage: Message = {
@@ -55,7 +174,7 @@ export default function ChatWidget() {
     setLoading(true);
 
     try {
-      const response = await api.post('/chat', { message: input });
+      const response = await api.post('/chat', { message: input, inputType });
       
       const assistantMessage: Message = {
         role: 'assistant',
@@ -64,6 +183,11 @@ export default function ChatWidget() {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+      
+      // Speak response if voice mode is enabled
+      if (voiceMode || inputType === 'voice') {
+        speakResponse(response.data.message);
+      }
     } catch (error) {
       const errorMessage: Message = {
         role: 'assistant',
@@ -79,7 +203,7 @@ export default function ChatWidget() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      handleSend('text');
     }
   };
 
@@ -119,10 +243,36 @@ export default function ChatWidget() {
               <Typography variant="h6" fontWeight="bold">
                 Health Assistant
               </Typography>
+              {voiceMode && (
+                <Tooltip title="Voice Mode Active">
+                  <RecordVoiceOver sx={{ fontSize: 20, animation: 'pulse 2s infinite' }} />
+                </Tooltip>
+              )}
             </Box>
-            <IconButton size="small" onClick={() => setOpen(false)} sx={{ color: 'white' }}>
-              <Close />
-            </IconButton>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Tooltip title={voiceMode ? 'Disable Voice Mode' : 'Enable Voice Mode'}>
+                <IconButton 
+                  size="small" 
+                  onClick={toggleVoiceMode}
+                  sx={{ 
+                    color: 'white',
+                    bgcolor: voiceMode ? 'rgba(255,255,255,0.2)' : 'transparent',
+                  }}
+                >
+                  <RecordVoiceOver />
+                </IconButton>
+              </Tooltip>
+              {isSpeaking && (
+                <Tooltip title="Stop Speaking">
+                  <IconButton size="small" onClick={stopSpeaking} sx={{ color: 'white' }}>
+                    <VolumeOff />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <IconButton size="small" onClick={() => setOpen(false)} sx={{ color: 'white' }}>
+                <Close />
+              </IconButton>
+            </Box>
           </Box>
 
           {/* Messages */}
@@ -200,24 +350,52 @@ export default function ChatWidget() {
 
           {/* Input */}
           <Box sx={{ p: 2, bgcolor: 'white', borderTop: '1px solid #ddd' }}>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Tooltip title={isListening ? 'Stop recording' : 'Voice input'}>
+                <IconButton
+                  color={isListening ? 'error' : 'default'}
+                  onClick={handleVoiceInput}
+                  disabled={loading || !speechSupported || voiceMode}
+                  sx={{
+                    ...(isListening && {
+                      animation: 'pulse 1.5s infinite',
+                      '@keyframes pulse': {
+                        '0%, 100%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                      },
+                    }),
+                  }}
+                >
+                  {isListening ? <MicOff /> : <Mic />}
+                </IconButton>
+              </Tooltip>
               <TextField
                 fullWidth
                 size="small"
-                placeholder="Ask me about health products..."
+                placeholder={isListening ? 'Listening...' : 'Ask me about health products...'}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                disabled={loading}
+                disabled={loading || isListening}
               />
               <IconButton
                 color="primary"
-                onClick={handleSend}
+                onClick={() => handleSend('text')}
                 disabled={!input.trim() || loading}
               >
                 <Send />
               </IconButton>
             </Box>
+            {!speechSupported && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                Voice input not supported in this browser
+              </Typography>
+            )}
+            {voiceMode && (
+              <Typography variant="caption" color="primary" sx={{ mt: 0.5, display: 'block', fontWeight: 600 }}>
+                🎙️ Voice Mode Active - Speak your query
+              </Typography>
+            )}
           </Box>
         </Paper>
       </Slide>
