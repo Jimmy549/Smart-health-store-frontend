@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Container, Grid, Typography, Link, IconButton } from '@mui/material';
+import { Box, Container, Typography, Link, IconButton } from '@mui/material';
 import { Facebook, Twitter, Instagram, LinkedIn, Email, Phone, LocationOn } from '@mui/icons-material';
 
 export default function Footer() {
@@ -14,9 +14,9 @@ export default function Footer() {
       }}
     >
       <Container maxWidth="lg">
-        <Grid container spacing={4}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'space-between' }}>
           {/* Company Info */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Box sx={{ flex: '1 1 300px', minWidth: '250px' }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Smart Health Store
             </Typography>
@@ -37,10 +37,10 @@ export default function Footer() {
                 <LinkedIn />
               </IconButton>
             </Box>
-          </Grid>
+          </Box>
 
           {/* Quick Links */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Box sx={{ flex: '1 1 200px', minWidth: '150px' }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Quick Links
             </Typography>
@@ -48,10 +48,10 @@ export default function Footer() {
               <Link href="/" color="inherit" underline="hover">Home</Link>
               <Link href="/analytics" color="inherit" underline="hover">Analytics</Link>
             </Box>
-          </Grid>
+          </Box>
 
           {/* Contact Info */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Box sx={{ flex: '1 1 250px', minWidth: '200px' }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Contact Info
             </Typography>
@@ -69,8 +69,8 @@ export default function Footer() {
                 <Typography variant="body2">123 Health St, Wellness City</Typography>
               </Box>
             </Box>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
 
         {/* Bottom Section */}
         <Box
