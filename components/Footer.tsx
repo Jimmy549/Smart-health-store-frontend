@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Container, Grid, Typography, Link, IconButton } from '@mui/material';
+import { Box, Container, Typography, Link, IconButton } from '@mui/material';
+import Grid from '@mui/material/Grid2';
 import { Facebook, Twitter, Instagram, LinkedIn, Email, Phone, LocationOn } from '@mui/icons-material';
 
 export default function Footer() {
@@ -16,7 +17,7 @@ export default function Footer() {
       <Container maxWidth="lg">
         <Grid container spacing={4}>
           {/* Company Info */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid xs={12} sm={6} md={4}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Smart Health Store
             </Typography>
@@ -40,7 +41,7 @@ export default function Footer() {
           </Grid>
 
           {/* Quick Links */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid xs={12} sm={6} md={4}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Quick Links
             </Typography>
@@ -51,7 +52,7 @@ export default function Footer() {
           </Grid>
 
           {/* Contact Info */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid xs={12} sm={6} md={4}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Contact Info
             </Typography>
