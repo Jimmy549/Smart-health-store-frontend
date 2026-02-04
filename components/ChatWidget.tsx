@@ -16,11 +16,19 @@ import { Chat, Close, Send, Mic, MicOff, VolumeUp, VolumeOff, RecordVoiceOver } 
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '@/utils/api';
+import ChatProductCard from './ChatProductCard';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  products?: Array<{
+    name: string;
+    category: string;
+    price: number;
+    image?: string;
+    description?: string;
+  }>;
 }
 
 export default function ChatWidget() {
@@ -192,23 +200,83 @@ export default function ChatWidget() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setLoading(true);
 
     try {
-      const response = await api.post('/chat', { message: input, inputType });
+      // Check if this looks like a symptom description
+      const isSymptomQuery = /\b(feel|feeling|have|experiencing|symptoms?|pain|hurt|ache|tired|weak|sick|ill|problem|issue|trouble|bukhar|fever|medicine|dawa|recommend|suggest|bimari|takleef|dard)\b/i.test(currentInput);
       
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: response.data.message,
-        timestamp: response.data.timestamp,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
+      let response;
+      if (isSymptomQuery) {
+        // Use symptom checker endpoint
+        response = await api.post('/symptom-checker', { 
+          symptoms: currentInput, 
+          inputType 
+        });
+        
+        if (response.data.success) {
+          const { analysis, products, followUpQuestion } = response.data;
+          
+          // Add analysis message
+          const analysisMessage: Message = {
+            role: 'assistant',
+            content: analysis,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, analysisMessage]);
+          
+          // Add product recommendations if any
+          if (products && products.length > 0) {
+            const productMessage: Message = {
+              role: 'assistant',
+              content: 'Here are some products that may help with your symptoms:',
+              timestamp: new Date().toISOString(),
+              products: products.map((p: any) => ({
+                name: p.name,
+                category: p.category,
+                price: p.price,
+                image: p.image,
+                description: p.description
+              }))
+            };
+            setMessages((prev) => [...prev, productMessage]);
+          }
+          
+          // Add follow-up question if confidence is low
+          if (followUpQuestion) {
+            setTimeout(() => {
+              const followUpMessage: Message = {
+                role: 'assistant',
+                content: followUpQuestion,
+                timestamp: new Date().toISOString(),
+              };
+              setMessages((prev) => [...prev, followUpMessage]);
+            }, 1000);
+          }
+        } else {
+          throw new Error(response.data.message);
+        }
+      } else {
+        // Use regular chat endpoint
+        response = await api.post('/chat', { message: currentInput, inputType });
+        
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: response.data.message,
+          timestamp: response.data.timestamp,
+          products: response.data.products || []
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
       
       // Speak response if voice mode is enabled
       if (voiceMode || inputType === 'voice') {
-        speakResponse(response.data.message);
+        const textToSpeak = isSymptomQuery && response.data.success 
+          ? response.data.analysis 
+          : response.data.message;
+        speakResponse(textToSpeak);
       }
     } catch (error) {
       const errorMessage: Message = {
@@ -346,6 +414,20 @@ export default function ChatWidget() {
                   >
                     {msg.content}
                   </Typography>
+                  {msg.products && msg.products.length > 0 && (
+                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {msg.products.map((product, idx) => (
+                        <ChatProductCard 
+                          key={idx} 
+                          product={product}
+                          onViewDetails={() => {
+                            // Optional: Add product details modal or navigation
+                            console.log('View details for:', product.name);
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  )}
                   <Typography 
                     variant="caption" 
                     sx={{ 
@@ -395,7 +477,7 @@ export default function ChatWidget() {
               <TextField
                 fullWidth
                 size="small"
-                placeholder={isListening ? 'Listening...' : 'Ask me about health products...'}
+                placeholder={isListening ? 'Listening...' : 'Describe your symptoms or ask about health products...'}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
